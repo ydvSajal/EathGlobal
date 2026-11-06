@@ -21,6 +21,7 @@ const Schema = z.object({
   ACK_TIMEOUT_MS: num(8000),
   ZG_TIMEOUT_MS: num(4000),
 
+  PUBLIC_BASE_URL: z.string().url().optional(),
   HEDERA_NETWORK: z.enum(["testnet","mainnet"]).default("testnet"),
   HEDERA_OPERATOR_ID: z.string().optional(),
   HEDERA_OPERATOR_KEY: z.string().optional(),

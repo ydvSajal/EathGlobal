@@ -12,6 +12,7 @@ import {
   type PaymentFacilitator,
   type StepUpProvider,
 } from "@agentmeter/shared";
+import { HederaFacilitator } from "@agentmeter/chain";
 import type { Config, PortName } from "./config";
 
 export interface Ports {
@@ -34,9 +35,20 @@ function notWired(port: PortName): never {
 
 export function buildPorts(config: Config): Ports {
   const m = config.adapters;
-  const pick = <T>(port: PortName, fake: () => T): T => (m[port] === "fake" ? fake() : notWired(port));
+  const pick = <T>(port: PortName, fake: () => T, real?: () => T): T =>
+    m[port] === "fake" ? fake() : real ? real() : notWired(port);
+  const e = config.env;
   return {
-    facilitator: pick("facilitator", () => new FakeFacilitator()),
+    facilitator: pick<PaymentFacilitator>(
+      "facilitator",
+      () => new FakeFacilitator(),
+      () =>
+        new HederaFacilitator({
+          facilitatorUrl: e.X402_FACILITATOR_URL!, // presence enforced by loadConfig for real adapters
+          network: `hedera:${e.HEDERA_NETWORK}`,
+          resourceBaseUrl: e.PUBLIC_BASE_URL ?? `http://localhost:${e.PORT}`,
+        }),
+    ),
     decider: pick("decider", () => new FakeDecider()),
     episodes: pick("episodes", () => new FakeEpisodeStore()),
     audit: pick("audit", () => new FakeAuditLog()),

@@ -8,6 +8,11 @@
     "typecheck": "tsc --noEmit -p .",
     "test": "vitest run --passWithNoTests"
   },
-  "dependencies": { "@agentmeter/shared": "workspace:*" },
-  "devDependencies": { "@types/node": "^22.0.0" }
+  "dependencies": {
+    "@agentmeter/shared": "workspace:*",
+    "@x402/core": "2.30.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  }
 }
