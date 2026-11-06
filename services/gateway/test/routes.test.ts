@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   AgentView,
   AuditRow,
@@ -39,6 +39,17 @@ beforeAll(() => {
   ({ db, repos, close } = makeTestDb("routes"));
 }, 60_000);
 afterAll(async () => close?.());
+
+// A 202 returns before the async decide -> deliver -> settle flow finishes. Wait for it, so the next
+// test's cleanup never deletes rows from under an in-flight session. (STEP_UP waits on a human, so it is excluded.)
+afterEach(async () => {
+  for (let i = 0; i < 250; i++) {
+    const open = await db.session.count({ where: { state: { in: ["PENDING", "DECIDING", "ISSUED", "ACTIVE"] } } });
+    if (!open) break;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  await orch.idle();
+});
 
 beforeEach(async () => {
   for (const m of [db.sessionEvent, db.stepUp, db.session, db.usedNonce, db.agent, db.device]) await (m as any).deleteMany();
