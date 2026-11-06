@@ -4,8 +4,8 @@ Owns contracts, docs, CI, and the PR stack. Only this lane edits `packages/share
 
 ## Tasks
 - [x] **K1** Docs foundation (PR #1).
-- [ ] **K2** Monorepo scaffold, lane briefs, `.env.example`, CI, state file and compaction hook (PR #2).
-- [ ] **K3** Shared contracts (PR #3): zod schemas, ports, errors, fakes, canonical receipt encode/sign/verify, test vector with negative cases, key-generation script.
+- [x] **K2** Monorepo scaffold, lane briefs, `.env.example`, CI, state file and compaction hook (PR #2).
+- [x] **K3** Shared contracts (PR #3): zod schemas, ports, errors, fakes, canonical receipt encode/sign/verify, test vector with negative cases, key-generation script.
 - [ ] **K4** Merge stack bottom-up; announce lanes may branch (Gate G0).
 - [ ] **K5** Handle `contract` issues from lanes (`docs/WORKFLOW.md` §5).
 - [ ] **K6** `docs/WORLD_DEBRIEF.md` (from web3 lane notes), final README with tx IDs and request IDs, architecture image, Credits, submission checklist (PRD §12).
