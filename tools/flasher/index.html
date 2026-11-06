@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AgentMeter Flasher</title>
+  <style>
+    :root { --bg:#0f1115; --card:#181b22; --line:#2a2f3a; --fg:#e8eaf0; --mut:#9aa3b2; --ok:#3ddc97; --bad:#ff6b6b; --acc:#6ea8fe; }
+    @media (prefers-color-scheme: light) { :root { --bg:#f5f6f8; --card:#fff; --line:#d9dce3; --fg:#14171f; --mut:#5b6472; --ok:#127a4f; --bad:#c0392b; --acc:#1f5fd1; } }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, sans-serif; }
+    main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+    h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 16px; margin: 0 0 12px; }
+    .sub { color:var(--mut); margin:0 0 20px; }
+    section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+    button { background:var(--acc); color:#fff; border:0; border-radius:8px; padding:8px 14px; font:inherit; cursor:pointer; }
+    button.secondary { background:transparent; color:var(--fg); border:1px solid var(--line); }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    input[type=text], select { background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:6px 8px; font:inherit; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0; }
+    .row label { min-width: 0; }
+    .img { display:grid; grid-template-columns: 110px 1fr 120px; gap:8px; align-items:center; margin:6px 0; }
+    @media (max-width: 560px) { .img { grid-template-columns: 1fr; } }
+    .mut { color:var(--mut); } .ok { color:var(--ok); } .bad { color:var(--bad); }
+    progress { width:100%; height:14px; }
+    pre { background:#0a0c10; color:#cfe3ff; border-radius:8px; padding:10px; min-height:140px; max-height:320px; overflow:auto; margin:8px 0 0; font:12.5px/1.45 ui-monospace, Consolas, monospace; white-space:pre-wrap; word-break:break-all; }
+    .warn { border-color: var(--bad); }
+    code { font:13px ui-monospace, Consolas, monospace; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>AgentMeter Flasher</h1>
+  <p class="sub">Plug in the ESP32 over USB, connect, pick your firmware <code>.bin</code> files, flash. Chrome or Edge only (Web Serial). Runs locally; nothing is uploaded.</p>
+
+  <section id="unsupported" class="warn" hidden>
+    <strong class="bad">Web Serial is not available.</strong> Open this page in Chrome or Edge on <code>http://localhost:5174</code>.
+  </section>
+
+  <section>
+    <h2>1. Connect</h2>
+    <div class="row">
+      <label>Baud <select id="baud"><option>115200</option><option>230400</option><option selected>460800</option><option>921600</option></select></label>
+      <button id="connect">Connect board</button>
+      <button id="disconnect" class="secondary" disabled>Disconnect</button>
+    </div>
+    <div id="chip" class="mut">Not connected. If connect fails, hold the <code>BOOT</code> button while clicking Connect, and check the USB cable carries data.</div>
+  </section>
+
+  <section>
+    <h2>2. Firmware</h2>
+    <div class="row">
+      <label>Layout
+        <select id="preset">
+          <option value="pio">PlatformIO build (bootloader, partitions, boot_app0, firmware)</option>
+          <option value="merged">Single merged image at 0x0</option>
+          <option value="app">App only (firmware.bin at 0x10000)</option>
+        </select>
+      </label>
+    </div>
+    <div id="images"></div>
+    <p class="mut" style="margin:6px 0 0">PlatformIO files: <code>firmware/esp32/.pio/build/&lt;env&gt;/{bootloader,partitions,firmware}.bin</code>; <code>boot_app0.bin</code> is in <code>~/.platformio/packages/framework-arduinoespressif32/tools/partitions/</code>. Offsets depend on the chip; they update after you connect.</p>
+    <div class="row">
+      <label><input type="checkbox" id="erase" /> Erase entire flash first</label>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. Flash</h2>
+    <div class="row"><button id="flash" disabled>Flash</button><span id="status" class="mut"></span></div>
+    <progress id="bar" value="0" max="100" hidden></progress>
+  </section>
+
+  <section>
+    <h2>Serial monitor</h2>
+    <div class="row">
+      <button id="monitor" class="secondary" disabled>Open monitor (115200)</button>
+      <button id="stopMonitor" class="secondary" disabled>Close</button>
+      <button id="reset" class="secondary" disabled>Reset board</button>
+      <input id="send" type="text" placeholder="send a line…" style="flex:1; min-width:160px" disabled />
+    </div>
+    <pre id="log"></pre>
+  </section>
+</main>
+<script type="module" src="/app.js"></script>
+</body>
+</html>
