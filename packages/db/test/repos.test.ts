@@ -88,4 +88,25 @@ describe("repos", () => {
     expect(await repos.sessions.countForDeviceSince("d1", T - 1)).toBe(1);
     expect(await repos.sessions.countForDeviceSince("d1", T + 1)).toBe(0);
   });
+
+  it("lists sessions in a state created before a cutoff", async () => {
+    await repos.sessions.create({ id: "su-old", deviceId: "d1", agentId: "a1", amount: "10", asset: "HBAR", minutes: 1, paymentPayloadHash: "h-su-old", now: T - 400 });
+    await repos.sessions.move("su-old", "PENDING", "STEP_UP", T - 400);
+    expect((await repos.sessions.listByStateOlderThan("STEP_UP", T - 300)).map((s) => s.id)).toEqual(["su-old"]);
+    expect(await repos.sessions.listByStateOlderThan("STEP_UP", T - 400)).toEqual([]); // strictly older
+    expect((await repos.sessions.listByStateOlderThan("ISSUED", T + 1)).map((s) => s.id)).toEqual(["s1"]);
+  });
+
+  it("reservedAmount sums the agent's in-flight sessions of the day, excluding one and terminal states", async () => {
+    // In flight now: s1 (ISSUED, 10) and su-old (STEP_UP, 10, created before the day start below).
+    expect(await repos.sessions.reservedAmount("a1", "none", T - 1000)).toBe(20n);
+    expect(await repos.sessions.reservedAmount("a1", "s1", T - 1000)).toBe(10n); // excluded
+    expect(await repos.sessions.reservedAmount("a1", "none", T - 100)).toBe(10n); // su-old is from an earlier window
+    await repos.sessions.create({ id: "big", deviceId: "d1", agentId: "a1", amount: "100000000000000000000", asset: "HBAR", minutes: 1, paymentPayloadHash: "h-big", now: T });
+    expect(await repos.sessions.reservedAmount("a1", "none", T - 100)).toBe(100000000000000000010n); // bigint, no float loss
+    await repos.sessions.move("big", "PENDING", "CANCELLED", T + 1); // terminal: no longer reserved
+    await repos.sessions.move("s1", "ISSUED", "ACTIVE", T + 1);
+    expect(await repos.sessions.reservedAmount("a1", "none", T - 100)).toBe(10n); // ACTIVE still reserved
+    expect(await repos.sessions.reservedAmount("other", "none", 0)).toBe(0n);
+  });
 });
