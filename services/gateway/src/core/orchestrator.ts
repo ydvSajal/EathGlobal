@@ -86,7 +86,7 @@ export class Orchestrator {
   /** Price and x402 requirements for a 402 response. */
   async quote(deviceId: string, minutes: number) {
     const device = await this.repos.devices.get(deviceId);
-    if (!device) throw new AgentMeterError("POLICY_DENIED", `unknown device ${deviceId}`);
+    if (!device) throw new AgentMeterError("NOT_FOUND", `unknown device ${deviceId}`);
     const amount = (BigInt(device.pricePerMinute) * BigInt(minutes)).toString();
     const requirements = await this.ports.facilitator.requirements({ deviceId, minutes, amount, payTo: device.payTo });
     return { device, amount, requirements };

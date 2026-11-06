@@ -5,6 +5,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { AgentMeterError, type ErrorCode } from "@agentmeter/shared";
 import type { Logger } from "pino";
 import type { AdapterModes } from "./config";
+import { mountApi, type ApiContext } from "./http/routes";
 
 export interface AppDeps {
   log: Logger;
@@ -13,6 +14,8 @@ export interface AppDeps {
   now: () => number;
   /** Resolves true when the DB answers; omitted means no DB wired. */
   checkDb?: () => Promise<boolean>;
+  /** When provided, mounts the REST + SSE routes. */
+  api?: ApiContext;
 }
 
 /** HTTP status for each stable error code (docs/API.md). */
@@ -31,6 +34,8 @@ export const STATUS: Record<ErrorCode, ContentfulStatusCode> = {
   DEVICE_REJECTED: 409,
   SETTLE_FAILED: 502,
   RATE_LIMITED: 429,
+  BAD_REQUEST: 400,
+  NOT_FOUND: 404,
   TIMEOUT: 504,
   INTERNAL: 500,
 };
@@ -53,6 +58,8 @@ export function createApp(deps: AppDeps) {
       db === "down" ? 503 : 200,
     );
   });
+
+  if (deps.api) mountApi(app, deps.api);
 
   app.onError((err, c) => {
     if (err instanceof AgentMeterError) {

@@ -39,7 +39,7 @@ The agent then polls `GET /sessions/:id` or listens on `/events` until a termina
 States: `PENDING | STEP_UP | DECIDING | ISSUED | ACTIVE | SETTLED | CANCELLED | SAFE_STOP`. Terminal: `SETTLED | CANCELLED | SAFE_STOP`.
 
 ### Step-up
-- `POST /stepup/:sessionId/start` → `{ authorizeUrl }`. Gateway stores `state`, `nonce`, PKCE verifier, and the exact action (deviceId, minutes, amount, expiry).
+- Step-up URL is returned by `POST /devices/:id/session` (`stepUpUrl`, 202 with state `STEP_UP`); there is no separate start endpoint.
 - `GET /stepup/callback?code&state` (called by the web callback server-side) → `{ sessionId, result:"APPROVED"|"DENIED"|"EXPIRED" }`.
 - OIDC params: `scope=openid`, `max_age=0`, `prompt=login`, S256 PKCE, `state`, `nonce`.
 
