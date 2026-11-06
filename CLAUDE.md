@@ -15,7 +15,27 @@ Agents pay per minute over x402 on Hedera to switch on a physical device (ESP32 
 - Keep a `docs/DECISIONS.md` log: one line per architectural decision.
 - When an SDK's behavior is unclear, read the linked repo/docs below before guessing. These SDKs move fast.
 
-## Monorepo layout (create this)
+## Session state (read first, update always)
+- **After any context compaction or at session start, read `docs/STATE.md`.** A `SessionStart` hook (matcher `compact`, in `.claude/settings.json`) prints it automatically after compaction.
+- **Update `docs/STATE.md` at every milestone, after each merged/opened PR, when a decision or blocker appears, and before a session ends or context grows large.** Edit the existing sections in place; keep it short (facts, not narrative). Bump "Last updated".
+- Decisions also go to `docs/DECISIONS.md`; STATE.md only points at them.
+- A hook cannot write for you. Keeping STATE.md current is your job.
+
+## Parallel lanes (see `docs/WORKFLOW.md`)
+Work is split so separate sessions can run in parallel via git worktrees. **Edit only inside your lane's folder.**
+- core: `packages/shared`, `docs`, root config. Lands first; owns contracts.
+- web: `apps/web` (brief: `apps/web/CLAUDE.md`)
+- backend: `services/gateway`, `services/agent`, `packages/db` (brief: `services/gateway/CLAUDE.md`)
+- web3: `packages/chain` (brief: `packages/chain/CLAUDE.md`)
+- firmware: `firmware/esp32` (brief: `firmware/esp32/CLAUDE.md`)
+
+Layers: L0 contracts (`packages/shared`) → L1 adapters (`packages/chain`, `packages/db`) → L2 domain (gateway `core/`) → L3 delivery (web, gateway http/ws, agent, firmware). Import downward only. Build against ports and fakes from `packages/shared`. Details: `docs/ARCHITECTURE.md`, `docs/API.md`, `TRD.md`.
+
+Stacked PRs: base each PR on the previous branch; merge bottom-up. Never edit `packages/shared` from a lane PR (contract-change protocol, `docs/WORKFLOW.md` §5).
+
+Ask the owner (never invent) for: Hedera keys/accounts, 0G key/credits, World client, hardware, deadline, spend.
+
+## Original layout (superseded: `packages/chain` added, see `docs/ARCHITECTURE.md`)
 ```
 agentmeter/
 ├─ apps/
