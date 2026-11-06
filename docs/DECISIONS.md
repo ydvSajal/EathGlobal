@@ -22,6 +22,9 @@ For bigger decisions add a short section below the table using the template at t
 | AD015 | 2026-11-06 | World step-up uses `max_age=0` + `prompt=login`, PKCE S256, `auth_time` checked against attempt start | World step-up guide | accepted |
 | AD016 | 2026-11-06 | Money as integer base-unit strings plus asset; timestamps as unix seconds | Avoid float and timezone bugs | accepted |
 | AD017 | 2026-11-06 | Stacked PRs: docs → scaffold → shared contracts; lanes branch from `main` after | Small reviewable diffs | accepted |
+| AD018 | 2026-11-06 | `docs/STATE.md` is the live state file; a `SessionStart` (compact) hook in `.claude/settings.json` reprints it after compaction; root CLAUDE.md makes updating it a standing rule | A hook cannot write for the model, so the rule plus the reprint keeps context across compactions | accepted |
+| AD019 | 2026-11-06 | `receipt.ts` is dependency-free (`node:crypto` only); test vector uses a public TEST seed and is reproducible because Ed25519 is deterministic | Easy to audit and port to C++; CI needs no generation step | accepted |
+| AD020 | 2026-11-06 | `withTimeout` and `AgentMeterError` (code `TIMEOUT`) live in `packages/shared` | Every adapter needs the same deadline behavior (TRD §3.1) | accepted |
 
 ## Template
 

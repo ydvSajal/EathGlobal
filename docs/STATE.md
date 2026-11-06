@@ -5,19 +5,21 @@
 _Last updated: 2026-11-06 by core session_
 
 ## Where we are
-- Phase: setup. Gate **G0** in progress (stack PR1–3, see `docs/WORKFLOW.md` §6).
-- Nothing is implemented yet except repo scaffolding. No Hedera/0G/World keys exist yet.
+- Phase: setup. Gate **G0** (stack PR1–3 merged) pending owner review/merge; see `docs/WORKFLOW.md` §6.
+- Implemented: scaffolding + shared contracts only. No Hedera/0G/World keys exist yet; no lane code yet.
 
 ## Repo and PRs
 - GitHub: https://github.com/ydvSajal/agentmeter (public, MIT). Default branch `main`.
-- Stack: #1 `feat/docs-foundation` (base `main`, open) → #2 `feat/monorepo-scaffold` (base #1 branch) → #3 `feat/shared-contracts` (base #2 branch, not yet created).
+- Stack (all open, none merged): #1 `feat/docs-foundation` (base `main`) → #2 `feat/monorepo-scaffold` (base #1 branch) → #3 `feat/shared-contracts` (base #2 branch). Merge bottom-up, retarget each to `main` after the one below merges (`docs/WORKFLOW.md` §3).
+- `packages/shared` now has: zod schemas, ports, fakes, `AgentMeterError` codes, `withTimeout`, receipt encode/sign/verify, typed gateway client, test vector `test-vectors/receipt.json` (public TEST key). 14 tests pass.
+- Scripts: `node packages/shared/scripts/gen-keys.ts` (new signing seed + public key), `gen-vector.ts` (regenerate vector). Node ≥22.18 or 26 needed to run `.ts` scripts directly.
 - Local: Windows, Node 26, pnpm 11. `reference/paybot` cloned (git-ignored).
 - Git identity in repo config: Sajal. Commits end with the Co-Authored-By and Claude-Session trailer lines.
 
 ## Lanes (parallel sessions via worktrees, see `docs/WORKFLOW.md`)
 | Lane | Status | Next task |
 |---|---|---|
-| core | PR1–3 in progress | PR3: shared contracts (schemas, ports, fakes, receipt crypto, test vector) |
+| core | PR1–3 open | K4: merge stack bottom-up, then announce lanes may branch (G0) |
 | web | not started | W1 scaffold Next.js after G0 |
 | backend | not started | B1 gateway skeleton with fakes after G0 |
 | web3 | not started | C1 first x402 Hedera payment (needs owner keys) |

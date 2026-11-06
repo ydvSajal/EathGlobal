@@ -1,0 +1,73 @@
+{
+  "note": "TEST ONLY key. Firmware: verify Ed25519(publicKeyBase64) over canonical bytes; expect must match for every case. Skew is 30s.",
+  "seedBase64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+  "publicKeyBase64": "A6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=",
+  "skewSeconds": 30,
+  "cases": [
+    {
+      "name": "valid",
+      "canonical": "AMv1|dev-1|s_0001|00112233445566778899aabbccddeeff|1789000000|1789000600|100000000|0.0.1001",
+      "sigBase64": "Z0hzMKzynnPzqrmkr2k71N7CDH0uAzH/s9vRtncQRmU1wf/KgZoU1C588UPObGK3OGFcsCJsZUPla7x6rnwEBA==",
+      "deviceId": "dev-1",
+      "now": 1789000100,
+      "usedNonces": [],
+      "expect": "ok"
+    },
+    {
+      "name": "valid_inside_skew_after_expiry",
+      "canonical": "AMv1|dev-1|s_0001|00112233445566778899aabbccddeeff|1789000000|1789000600|100000000|0.0.1001",
+      "sigBase64": "Z0hzMKzynnPzqrmkr2k71N7CDH0uAzH/s9vRtncQRmU1wf/KgZoU1C588UPObGK3OGFcsCJsZUPla7x6rnwEBA==",
+      "deviceId": "dev-1",
+      "now": 1789000620,
+      "usedNonces": [],
+      "expect": "ok"
+    },
+    {
+      "name": "tampered_amount",
+      "canonical": "AMv1|dev-1|s_0001|00112233445566778899aabbccddeeff|1789000000|1789000600|999999999|0.0.1001",
+      "sigBase64": "Z0hzMKzynnPzqrmkr2k71N7CDH0uAzH/s9vRtncQRmU1wf/KgZoU1C588UPObGK3OGFcsCJsZUPla7x6rnwEBA==",
+      "deviceId": "dev-1",
+      "now": 1789000100,
+      "usedNonces": [],
+      "expect": "signature"
+    },
+    {
+      "name": "wrong_device",
+      "canonical": "AMv1|dev-1|s_0001|00112233445566778899aabbccddeeff|1789000000|1789000600|100000000|0.0.1001",
+      "sigBase64": "Z0hzMKzynnPzqrmkr2k71N7CDH0uAzH/s9vRtncQRmU1wf/KgZoU1C588UPObGK3OGFcsCJsZUPla7x6rnwEBA==",
+      "deviceId": "dev-2",
+      "now": 1789000100,
+      "usedNonces": [],
+      "expect": "device"
+    },
+    {
+      "name": "expired",
+      "canonical": "AMv1|dev-1|s_0001|00112233445566778899aabbccddeeff|1789000000|1789000600|100000000|0.0.1001",
+      "sigBase64": "Z0hzMKzynnPzqrmkr2k71N7CDH0uAzH/s9vRtncQRmU1wf/KgZoU1C588UPObGK3OGFcsCJsZUPla7x6rnwEBA==",
+      "deviceId": "dev-1",
+      "now": 1789000700,
+      "usedNonces": [],
+      "expect": "expired"
+    },
+    {
+      "name": "not_yet_valid",
+      "canonical": "AMv1|dev-1|s_0001|00112233445566778899aabbccddeeff|1789000000|1789000600|100000000|0.0.1001",
+      "sigBase64": "Z0hzMKzynnPzqrmkr2k71N7CDH0uAzH/s9vRtncQRmU1wf/KgZoU1C588UPObGK3OGFcsCJsZUPla7x6rnwEBA==",
+      "deviceId": "dev-1",
+      "now": 1788999900,
+      "usedNonces": [],
+      "expect": "not_yet_valid"
+    },
+    {
+      "name": "replay",
+      "canonical": "AMv1|dev-1|s_0001|00112233445566778899aabbccddeeff|1789000000|1789000600|100000000|0.0.1001",
+      "sigBase64": "Z0hzMKzynnPzqrmkr2k71N7CDH0uAzH/s9vRtncQRmU1wf/KgZoU1C588UPObGK3OGFcsCJsZUPla7x6rnwEBA==",
+      "deviceId": "dev-1",
+      "now": 1789000100,
+      "usedNonces": [
+        "00112233445566778899aabbccddeeff"
+      ],
+      "expect": "replay"
+    }
+  ]
+}
