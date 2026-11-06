@@ -13,6 +13,8 @@ export const ERROR_CODES = [
   "DEVICE_REJECTED",
   "SETTLE_FAILED",
   "RATE_LIMITED",
+  "BAD_REQUEST",
+  "NOT_FOUND",
   "TIMEOUT",
   "INTERNAL",
 ] as const;

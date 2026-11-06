@@ -1,0 +1,97 @@
+// AgentMeter persistence (TRD §4). SQLite, single writer (one gateway process).
+// Money: base-unit decimal strings + asset. Time: unix seconds (Int).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Device {
+  id                String    @id
+  name              String
+  pricePerMinute    String // base units per minute
+  asset             String    @default("HBAR")
+  payTo             String // Hedera account id receiving payment
+  tokenHash         String // sha256 of the device's WS connect token
+  hmacSecret        String // per-device secret for ack MAC (server side only)
+  pubKeyFingerprint String? // receipt public key pinned on this device
+  status            String    @default("OFFLINE") // ONLINE | OFFLINE
+  relay             Boolean   @default(false)
+  lastHeartbeat     Int?
+  sessions          Session[]
+}
+
+model Agent {
+  id               String    @id
+  name             String
+  hederaAccountId  String    @unique
+  dailyCap         String
+  spentToday       String    @default("0")
+  spentDay         String    @default("") // UTC YYYY-MM-DD that spentToday belongs to
+  asset            String    @default("HBAR")
+  allowedDeviceIds String    @default("[]") // JSON string array (policy allowlist)
+  sessions         Session[]
+}
+
+model Session {
+  id                 String         @id
+  deviceId           String
+  agentId            String
+  amount             String
+  asset              String
+  minutes            Int
+  state              String // see shared SessionState
+  paymentPayloadHash String         @unique // single-use payment guard
+  payer              String?
+  nonce              String?        @unique // receipt nonce, set when ISSUED
+  notBefore          Int?
+  expiresAt          Int?
+  hederaTxId         String?
+  zgRequestId        String?
+  zgRootHash         String?
+  hcsSeq             Int?
+  createdAt          Int
+  updatedAt          Int
+  device             Device         @relation(fields: [deviceId], references: [id])
+  agent              Agent          @relation(fields: [agentId], references: [id])
+  events             SessionEvent[]
+  stepUps            StepUp[]
+
+  @@index([deviceId, createdAt])
+  @@index([agentId, createdAt])
+}
+
+model SessionEvent {
+  id        Int     @id @default(autoincrement())
+  sessionId String
+  state     String
+  at        Int
+  detail    String?
+  hcsSeq    Int?
+  session   Session @relation(fields: [sessionId], references: [id])
+
+  @@index([sessionId, id])
+}
+
+model StepUp {
+  id           String  @id
+  sessionId    String
+  state        String  @unique // OIDC state, single use
+  nonce        String
+  codeVerifier String // PKCE verifier, server side only
+  status       String  @default("PENDING") // PENDING | APPROVED | DENIED | EXPIRED
+  worldSub     String?
+  authTime     Int?
+  createdAt    Int
+  expiresAt    Int
+  session      Session @relation(fields: [sessionId], references: [id])
+}
+
+model UsedNonce {
+  nonce     String @id
+  createdAt Int
+}

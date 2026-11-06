@@ -25,6 +25,9 @@ For bigger decisions add a short section below the table using the template at t
 | AD018 | 2026-11-06 | `docs/STATE.md` is the live state file; a `SessionStart` (compact) hook in `.claude/settings.json` reprints it after compaction; root CLAUDE.md makes updating it a standing rule | A hook cannot write for the model, so the rule plus the reprint keeps context across compactions | accepted |
 | AD019 | 2026-11-06 | `receipt.ts` is dependency-free (`node:crypto` only); test vector uses a public TEST seed and is reproducible because Ed25519 is deterministic | Easy to audit and port to C++; CI needs no generation step | accepted |
 | AD020 | 2026-11-06 | `withTimeout` and `AgentMeterError` (code `TIMEOUT`) live in `packages/shared` | Every adapter needs the same deadline behavior (TRD §3.1) | accepted |
+| AD021 | 2026-11-06 | Added `BAD_REQUEST` and `NOT_FOUND` to shared error codes (additive); step-up URL comes from the session response, no separate `/stepup/:id/start` | Honest HTTP errors; orchestrator already starts the step-up | accepted |
+| AD022 | 2026-11-06 | Gateway accepts the x402 payment in `X-PAYMENT` or `PAYMENT-SIGNATURE` and sends requirements in the 402 body and a `PAYMENT-REQUIRED` header | Covers v1 and v2 x402 clients; C2 confirms the real header names | proposed |
+| AD023 | 2026-11-06 | Flasher is a local Web Serial tool (`tools/flasher`, esptool-js 0.7.0), not part of `apps/web` | Needs Chrome secure context + offline at venue; keeps the dashboard lane clean | accepted |
 
 ## Template
 

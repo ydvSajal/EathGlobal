@@ -5,9 +5,25 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
     "typecheck": "tsc --noEmit -p .",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "sim:device": "tsx scripts/sim-device.ts"
   },
-  "dependencies": { "@agentmeter/shared": "workspace:*", "@agentmeter/db": "workspace:*", "@agentmeter/chain": "workspace:*" },
-  "devDependencies": { "@types/node": "^22.0.0" }
+  "dependencies": {
+    "@agentmeter/chain": "workspace:*",
+    "@agentmeter/db": "workspace:*",
+    "@agentmeter/shared": "workspace:*",
+    "@hono/node-server": "^2.1.6",
+    "hono": "^4.13.16",
+    "pino": "^10.4.0",
+    "ws": "^8.22.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15"
+  }
 }

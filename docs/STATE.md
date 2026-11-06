@@ -2,7 +2,7 @@
 
 **Read this first after any context compaction.** It is auto-printed by the `SessionStart` (compact) hook in `.claude/settings.json`. Update it at every milestone and before ending a session (rule in `CLAUDE.md`). Keep it short: facts that survive compaction, not narrative.
 
-_Last updated: 2026-11-06 by backend session (flasher tool added)_
+_Last updated: 2026-11-06 by backend session (stack merged, flasher added)_
 
 ## Where we are
 - Phase: lanes open. Gate **G0 passed** (2026-11-06). Next gates: G1 first Hedera payment (needs owner keys), G2 firmware verify.
@@ -22,9 +22,9 @@ _Last updated: 2026-11-06 by backend session (flasher tool added)_
 |---|---|---|
 | core | K1–K4 done | K5 handle `contract` issues; K6 final docs |
 | web | not started | W1 scaffold Next.js after G0 |
-| backend | not started | B1 gateway skeleton with fakes after G0 |
+| backend | B1-B6 merged into main (PRs #5-#9, #11); CI green. Smoke: real gateway + sim ESP32 + curl reached SETTLED on fakes | B7 agent CLI (needs C1 payer code), B8 scenarios; C-lane needs Hedera keys |
 | web3 | not started | C1 first x402 Hedera payment (needs owner keys) |
-| firmware | owner has the ESP32 and will write firmware later; flasher tool ready (`tools/flasher`, PR) | F1 serial vector test when owner starts |
+| firmware | owner has the ESP32 and writes firmware later; flasher tool in `tools/flasher` | F1 serial vector test when owner starts; protocol ref: `services/gateway/scripts/sim-device.ts` + `docs/API.md` §2-3 |
 
 ## Decisions in force
 See `docs/DECISIONS.md` (AD001–AD017). Key ones: settle-on-ack; no Solidity; any 0G failure → SAFE_STOP; ports + fakes; layers L0–L3; gateway not serverless.
@@ -43,4 +43,8 @@ See `docs/DECISIONS.md` (AD001–AD017). Key ones: settle-on-ack; no Solidity; a
 - pnpm 11 needs `allowBuilds` in `pnpm-workspace.yaml` (esbuild: true).
 - Prizes page lists no deadline. Definitive and Chainlink resources are irrelevant to us.
 - Paybot has no ESP32/receipt/policy/World/0G code; only the Hono resource-server shape and UX ideas are reusable.
+- Two sessions share this repo: Session A (backend/web3/firmware/docs) and Session B (frontend `apps/web`). Session B should work in its own worktree (`.worktrees/web`); never commit another lane's files.
+- `gh pr merge` by Claude is blocked by the auto-mode classifier; the owner merges PRs (bottom-up) or adds a permission rule.
+- DB: Prisma 6 + SQLite. `pnpm --filter @agentmeter/db db:push` then `seed` (device d1, agent a1; dev token `dev-token-d1`, HMAC `dev-hmac-d1`). Relative `DATABASE_URL=file:./dev.db` resolves next to `packages/db/prisma/schema.prisma`.
 - Flasher: `pnpm --filter @agentmeter/flasher start` then http://localhost:5174 in Chrome/Edge. Flash PlatformIO .bin files and read serial output. Verified in-browser only (load, presets, no console errors); real flashing untested until the board is plugged in.
+- DB tests/gateway tests use real SQLite; `createDb` uses one connection + long transaction limits (writes queue instead of SQLITE_BUSY). vitest in gateway runs files serially with 30s timeouts.
