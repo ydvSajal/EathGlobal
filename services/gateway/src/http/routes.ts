@@ -3,6 +3,7 @@ import type { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { AgentMeterError, CreateSessionBody, type Clock } from "@agentmeter/shared";
 import type { Repos } from "@agentmeter/db";
+import type { Logger } from "pino";
 import type { Orchestrator } from "../core/orchestrator";
 import type { DeviceHub } from "../ws/devices";
 import { RateLimiter } from "./ratelimit";
@@ -19,8 +20,11 @@ export interface ApiContext {
 
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64");
 
-export function mountApi(app: Hono, ctx: ApiContext) {
+export function mountApi(app: Hono, ctx: ApiContext, log: Logger) {
   const { orchestrator, repos, hub, clock } = ctx;
+  // The orchestrator's flow never rejects (it fails safe); if it ever does, say so loudly.
+  const flowRejected = (sessionId: string) => (e: unknown) =>
+    log.error({ sessionId, err: e instanceof Error ? e.message : String(e) }, "session flow rejected unexpectedly");
   const limiter = new RateLimiter(ctx.rateLimit?.max ?? 10, ctx.rateLimit?.windowSec ?? 60);
   const network = ctx.hederaNetwork ?? "testnet";
 
@@ -40,7 +44,7 @@ export function mountApi(app: Hono, ctx: ApiContext) {
     }
 
     const r = await orchestrator.startSession({ deviceId, agentId, minutes, paymentHeader });
-    r.done.catch(() => undefined); // background outcome is observed via /sessions and /events
+    r.done.catch(flowRejected(r.sessionId)); // outcome is observed via /sessions and /events
     return c.json({ sessionId: r.sessionId, state: r.state, ...(r.stepUpUrl ? { stepUpUrl: r.stepUpUrl } : {}) }, 202);
   });
 
@@ -55,7 +59,7 @@ export function mountApi(app: Hono, ctx: ApiContext) {
     const state = c.req.query("state");
     if (!state) throw new AgentMeterError("BAD_REQUEST", "state is required");
     const res = await orchestrator.completeStepUp({ state, code: c.req.query("code"), error: c.req.query("error") });
-    res.done.catch(() => undefined);
+    res.done.catch(flowRejected(res.sessionId));
     return c.json({ sessionId: res.sessionId, result: res.result });
   });
 

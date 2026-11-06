@@ -1,7 +1,7 @@
 /**
  * Session state machine (L2, pure). Only these transitions exist; anything else is a bug.
- * Rule: payment settles only on ACTIVE -> SETTLED. A failed settle leaves the session ACTIVE
- * so it can be retried idempotently (TRD §3.1).
+ * Rule: payment settles only on ACTIVE -> SETTLED. If settle still fails after 3 attempts the device
+ * is switched off and the session goes ACTIVE -> CANCELLED unpaid (TRD §3.1).
  */
 import { AgentMeterError, TERMINAL_STATES, type SessionState } from "@agentmeter/shared";
 
@@ -10,7 +10,7 @@ const TRANSITIONS: Record<SessionState, readonly SessionState[]> = {
   STEP_UP: ["DECIDING", "CANCELLED"], // CANCELLED: denied / expired / cancelled
   DECIDING: ["ISSUED", "SAFE_STOP"], // SAFE_STOP: 0G DENY, error, timeout, or malformed
   ISSUED: ["ACTIVE", "CANCELLED"], // CANCELLED: no ack within 8s, or device nack
-  ACTIVE: ["SETTLED"],
+  ACTIVE: ["SETTLED", "CANCELLED"], // CANCELLED: settle failed, fail-safe, or restart; device switched off, unpaid
   SETTLED: [],
   CANCELLED: [],
   SAFE_STOP: [],
