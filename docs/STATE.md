@@ -2,7 +2,7 @@
 
 **Read this first after any context compaction.** It is auto-printed by the `SessionStart` (compact) hook in `.claude/settings.json`. Update it at every milestone and before ending a session (rule in `CLAUDE.md`). Keep it short: facts that survive compaction, not narrative.
 
-_Last updated: 2026-11-06 by backend session (B2 done)_
+_Last updated: 2026-11-06 by backend session (B4 done)_
 
 ## Where we are
 - Phase: lanes open. Gate **G0 passed** (2026-11-06). Next gates: G1 first Hedera payment (needs owner keys), G2 firmware verify.
@@ -22,7 +22,7 @@ _Last updated: 2026-11-06 by backend session (B2 done)_
 |---|---|---|
 | core | K1–K4 done | K5 handle `contract` issues; K6 final docs |
 | web | not started | W1 scaffold Next.js after G0 |
-| backend | B1 #5, B3 #6, B2 #7 (stacked, open; merging needs owner) | B4 orchestrator, then B6 device hub + sim, B5 routes |
+| backend | B1 #5, B3 #6, B2 #7, B4 #8 (stacked, open; owner merges) | B6 device hub + sim device, then B5 routes |
 | web3 | not started | C1 first x402 Hedera payment (needs owner keys) |
 | firmware | not started | F1 verify test vector (needs PR3) |
 

@@ -14,7 +14,7 @@ Hono + `@hono/node-server` + `ws`, Prisma + SQLite, zod, pino, Vitest.
 - [x] **B1** Gateway skeleton: `config.ts` (zod env, fail fast), `main.ts` composition root (`ADAPTERS=fake|real`), `/health`, pino logging.
 - [x] **B2** `packages/db`: Prisma schema per TRD §4 (`Device, Agent, Session, SessionEvent, StepUp, UsedNonce`), repositories, seed with one device and one agent.
 - [x] **B3** `core/session-machine.ts` (allowed transitions only) and `core/policy.ts` (allowlist, daily cap, device rate, threshold). Table-driven unit tests.
-- [ ] **B4** `core/orchestrator.ts`: verify → policy → step-up → decide → receipt → push → ack(8s) → settle → log. Tests with fakes: happy, replay, over-cap denied, 0G down → SAFE_STOP, no ack → no settle.
+- [x] **B4** `core/orchestrator.ts`: verify → policy → step-up → decide → receipt → push → ack(8s) → settle → log. Tests with fakes: happy, replay, over-cap denied, 0G down → SAFE_STOP, no ack → no settle.
 - [ ] **B5** HTTP routes: `POST /devices/:id/session` (402 flow via the `PaymentFacilitator` port), `GET /sessions/:id`, step-up start/callback, reads, `GET /events` SSE.
 - [ ] **B6** Device hub `ws/devices.ts`: hello, heartbeat, ack/nack, 15s offline detection, `receipt`/`cancel` push. Include a simulated-device script (`pnpm sim:device`) so you can test without hardware.
 - [ ] **B7** `services/agent`: `pay.ts` using `@x402/fetch` + Hedera signer (pattern from hbar402), `cli.ts` (`rent`, `status`), handles `step_up_required` by printing the URL and polling. Needs web3 lane for the real signer; use the fake facilitator until then.
