@@ -56,7 +56,7 @@ Agent service ──x402 pay──► Gateway (Hono) ◄──SSE/REST── Das
 
 ### Session state machine
 `PENDING → STEP_UP? → DECIDING → ISSUED → ACTIVE → SETTLED`
-Exits: `CANCELLED` (step-up denied/expired, no ack in 8s, policy deny), `SAFE_STOP` (0G error/timeout). Payment is **never settled** on any exit except `SETTLED`.
+Exits: `CANCELLED` (step-up denied/expired, no ack in 8s, policy deny, settle failed 3× after ack so the device is switched off, gateway restart), `SAFE_STOP` (0G error/timeout). Payment is **never settled** on any exit except `SETTLED`.
 
 ### Request lifecycle (hero flow)
 1. Agent `POST /devices/:id/session` → 402 (price/min, network, payTo).

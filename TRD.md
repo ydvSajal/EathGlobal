@@ -51,7 +51,8 @@ Items tagged **(verify)** are unconfirmed facts to check before depending on the
 | Facilitator `/verify` | 5s | `PAYMENT_UNVERIFIED`, session not created |
 | 0G Compute decide | **4s** | `SAFE_STOP` |
 | Device ack | **8s** | `CANCELLED`, no settle |
-| Facilitator `/settle` | 10s | session stays `ACTIVE`, retry idempotently, flag in audit |
+| Facilitator `/settle` | 10s per attempt, 3 attempts (500ms apart) | idempotent retry; if all 3 fail the device is told to switch off and the session goes `ACTIVE → CANCELLED` unpaid ("settle failed: device switched off, unpaid") |
+| Human step-up wait | 300s | `CANCELLED` by the sweeper (every 30s); a later approve gets `STEP_UP_EXPIRED` and never resumes |
 | 0G Storage put | 10s | retry in background; never changes the decision |
 | HCS submit | 10s | retry in background; never changes the decision |
 | World token exchange | 5s | step-up fails closed (`CANCELLED`) |
@@ -62,6 +63,8 @@ Items tagged **(verify)** are unconfirmed facts to check before depending on the
 2. There is no code path that returns `ALLOW` without a validated model response.
 3. Payment settles only after a valid device ack.
 4. Logging failures never change a decision.
+5. The session flow never hangs: any unexpected error moves the session to a terminal state from its persisted state (`DECIDING → SAFE_STOP`, `ISSUED/ACTIVE → CANCELLED` + device cancel). At boot, every non-terminal session is closed the same way (pending payments are in memory).
+6. In-flight sessions reserve the agent's daily cap, so concurrent requests cannot overshoot it.
 
 ### 3.3 Security
 - Secrets only in env; `.env` and `secrets.h` git-ignored; `.env.example` committed.
