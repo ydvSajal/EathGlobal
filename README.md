@@ -4,7 +4,23 @@ AI agents rent real machines (charger, locker, printer, rover) by paying **per m
 
 Built at ETHGlobal Mumbai 2026 on top of [Paybot](https://github.com/superposition/paybot) (ETHGlobal Buenos Aires 2025). See [Credits](#credits).
 
-> Status: planning complete, nothing built yet. Items marked **(verify)** are unconfirmed facts to check before relying on them.
+> Status: setup done (docs, monorepo scaffold, shared contracts with receipt crypto merged). Lane work (gateway, web, web3 adapters, firmware) has not started. Items marked **(verify)** are unconfirmed facts to check before relying on them.
+
+## Quick start
+
+Prerequisites: Node 22+ (scripts run `.ts` directly on Node ≥22.18), pnpm 11, git. Hardware and API keys are not needed for the shared package or fakes.
+
+```bash
+pnpm install
+cp .env.example .env                           # fill later; ADAPTERS=fake needs no keys
+pnpm typecheck && pnpm test                    # 14 tests in packages/shared
+node packages/shared/scripts/gen-keys.ts       # new receipt-signing seed + public key to pin in firmware
+```
+
+Working on a lane in parallel: see [`docs/WORKFLOW.md`](docs/WORKFLOW.md) §2 (git worktrees) and your lane brief (`apps/web/CLAUDE.md`, `services/gateway/CLAUDE.md`, `packages/chain/CLAUDE.md`, `firmware/esp32/CLAUDE.md`).
+
+### Submission sections still to add when results exist
+Hedera tx ID(s) + HashScan links · HCS topic ID · 0G request IDs + Storage root hashes · "what breaks if 0G is removed" · safe-stop explanation · demo video links · link to `docs/WORLD_DEBRIEF.md`.
 > Companion docs: [`PRD.md`](PRD.md) (requirements), [`CLAUDE.md`](CLAUDE.md) (working rules), [`docs/SCOPE.md`](docs/SCOPE.md) (source map, corrections).
 
 ---
