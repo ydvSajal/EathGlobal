@@ -1,0 +1,13 @@
+reference/
+node_modules/
+.env
+.env.*
+!.env.example
+*.db
+*.db-journal
+dist/
+.next/
+.pio/
+secrets.h
+.worktrees/
+*.tsbuildinfo
