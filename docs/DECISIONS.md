@@ -29,6 +29,10 @@ For bigger decisions add a short section below the table using the template at t
 | AD022 | 2026-11-06 | Gateway accepts the x402 payment in `X-PAYMENT` or `PAYMENT-SIGNATURE` and sends requirements in the 402 body and a `PAYMENT-REQUIRED` header | Covers v1 and v2 x402 clients; C2 confirms the real header names | proposed |
 | AD023 | 2026-11-06 | Flasher is a local Web Serial tool (`tools/flasher`, esptool-js 0.7.0), not part of `apps/web` | Needs Chrome secure context + offline at venue; keeps the dashboard lane clean | accepted |
 
+| AD024 | 2026-11-06 | Use npm `@x402/core`/`@x402/hedera` 2.30.0 (published; no monorepo-source workaround). Hedera SDK is `@hiero-ledger/sdk` 2.90.1 as pinned by `@x402/hedera`; import its primitives via `@x402/hedera` re-exports to avoid duplicate installs | Verified on npm; package README warns duplicate SDK installs break `instanceof` checks | accepted |
+| AD025 | 2026-11-06 | x402 v2 headers: request `PAYMENT-SIGNATURE` (v1 `X-PAYMENT`), 402 response `PAYMENT-REQUIRED`, settlement `PAYMENT-RESPONSE`. Gateway already accepts both request headers (supersedes AD022 proposal) | Confirmed in `@x402/core` 2.30.0 source | accepted |
+| AD026 | 2026-11-06 | `HederaFacilitator` (packages/chain) builds 402 requirements itself (fee payer from facilitator `/supported`), verifies without settling, settles only after ack, idempotent per payload hash. Verified live: `x402.org` fee payer 0.0.9185802, Blocky402 0.0.7162784, both advertise `hedera:testnet` | Spec splits /verify and /settle, so settle-on-ack needs no refund fallback | accepted |
+
 ## Template
 
 ```

@@ -43,6 +43,13 @@ describe("config", () => {
 });
 
 describe("ports", () => {
+  it("wires the real Hedera facilitator when FACILITATOR=real (no network call at construction)", () => {
+    const c = loadConfig({ FACILITATOR: "real", X402_FACILITATOR_URL: "https://x402.org/facilitator", HEDERA_PAYTO_ACCOUNT_ID: "0.0.9" });
+    const p = buildPorts(c);
+    expect(p.facilitator.constructor.name).toBe("HederaFacilitator");
+    expect(p.decider.constructor.name).toBe("FakeDecider"); // other ports stay fake
+  });
+
   it("refuses to silently fall back to a fake when real is requested but unwired", () => {
     const c = loadConfig({
       DECIDER: "real",

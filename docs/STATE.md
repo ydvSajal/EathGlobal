@@ -2,7 +2,7 @@
 
 **Read this first after any context compaction.** It is auto-printed by the `SessionStart` (compact) hook in `.claude/settings.json`. Update it at every milestone and before ending a session (rule in `CLAUDE.md`). Keep it short: facts that survive compaction, not narrative.
 
-_Last updated: 2026-11-06 by backend session (stack merged, flasher added)_
+_Last updated: 2026-11-06 by web3/backend session (C2 facilitator adapter)_
 
 ## Where we are
 - Phase: lanes open. Gate **G0 passed** (2026-11-06). Next gates: G1 first Hedera payment (needs owner keys), G2 firmware verify.
@@ -23,7 +23,7 @@ _Last updated: 2026-11-06 by backend session (stack merged, flasher added)_
 | core | K1–K4 done | K5 handle `contract` issues; K6 final docs |
 | web | not started | W1 scaffold Next.js after G0 |
 | backend | B1-B6 merged into main (PRs #5-#9, #11); CI green. Smoke: real gateway + sim ESP32 + curl reached SETTLED on fakes | B7 agent CLI (needs C1 payer code), B8 scenarios; C-lane needs Hedera keys |
-| web3 | not started | C1 first x402 Hedera payment (needs owner keys) |
+| web3 | C2 real facilitator adapter done (PR open); live-verified vs x402.org without keys | C1 first payment + C3 HCS need owner Hedera keys; C4/C5 need 0G key; C6 needs World client |
 | firmware | owner has the ESP32 and writes firmware later; flasher tool in `tools/flasher` | F1 serial vector test when owner starts; protocol ref: `services/gateway/scripts/sim-device.ts` + `docs/API.md` §2-3 |
 
 ## Decisions in force
@@ -48,3 +48,4 @@ See `docs/DECISIONS.md` (AD001–AD017). Key ones: settle-on-ack; no Solidity; a
 - DB: Prisma 6 + SQLite. `pnpm --filter @agentmeter/db db:push` then `seed` (device d1, agent a1; dev token `dev-token-d1`, HMAC `dev-hmac-d1`). Relative `DATABASE_URL=file:./dev.db` resolves next to `packages/db/prisma/schema.prisma`.
 - Flasher: `pnpm --filter @agentmeter/flasher start` then http://localhost:5174 in Chrome/Edge. Flash PlatformIO .bin files and read serial output. Verified in-browser only (load, presets, no console errors); real flashing untested until the board is plugged in.
 - DB tests/gateway tests use real SQLite; `createDb` uses one connection + long transaction limits (writes queue instead of SQLITE_BUSY). vitest in gateway runs files serially with 30s timeouts.
+- x402 facts (verified 2026-11-06): `@x402/hedera`/`core`/`fetch`/`hono` 2.30.0 are on npm. Facilitators x402.org (fee payer 0.0.9185802) and Blocky402 (0.0.7162784) both list hedera:testnet. World OIDC discovery works (authorize/token/jwks under auth.world.org/api/v1). Run real-facilitator live tests with `LIVE=1 pnpm --filter @agentmeter/chain test`.
