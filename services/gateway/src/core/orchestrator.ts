@@ -350,7 +350,8 @@ export class Orchestrator {
     //    failing, switch it off and cancel unpaid rather than give free usage.
     const pay = this.pending.get(sessionId);
     if (!pay) throw new AgentMeterError("INTERNAL", "pending payment missing", sessionId);
-    for (let attempt = 1; attempt <= SETTLE_ATTEMPTS; attempt++) {
+    let txId: string | undefined;
+    for (let attempt = 1; attempt <= SETTLE_ATTEMPTS && !txId; attempt++) {
       if (attempt > 1 && this.o.settleBackoffMs > 0) await new Promise((r) => setTimeout(r, this.o.settleBackoffMs));
       try {
         const res = await withTimeout(
@@ -358,19 +359,25 @@ export class Orchestrator {
           this.o.settleTimeoutMs,
           "facilitator settle",
         );
-        if (res.success && res.txId) {
-          this.log.info({ sessionId, txId: res.txId }, "settled"); // logged first: if the DB write below fails, the tx id survives
-          this.pending.delete(sessionId);
-          await this.move(sessionId, "ACTIVE", "SETTLED", { hederaTxId: res.txId }, "settled");
-          await this.repos.agents.addSpend(s.agentId, BigInt(s.amount), this.ports.clock.now());
-          return;
-        }
-        this.log.warn({ sessionId, attempt, error: res.error }, "settle failed");
+        if (res.success && res.txId) txId = res.txId;
+        else this.log.warn({ sessionId, attempt, error: res.error }, "settle failed");
       } catch (e) {
         this.log.warn({ sessionId, attempt, err: errMsg(e) }, "settle error");
       }
     }
     this.pending.delete(sessionId);
+    if (txId) {
+      // Money has moved. Bookkeeping errors below must NEVER be treated as a failed settle: that would
+      // retry the payment and switch off a device that was paid for.
+      this.log.info({ sessionId, txId }, "settled"); // logged first: the tx id survives a failed DB write
+      try {
+        await this.move(sessionId, "ACTIVE", "SETTLED", { hederaTxId: txId }, "settled");
+        await this.repos.agents.addSpend(s.agentId, BigInt(s.amount), this.ports.clock.now());
+      } catch (e) {
+        this.log.error({ sessionId, txId, err: errMsg(e) }, "settled on-chain but bookkeeping failed; reconcile manually");
+      }
+      return;
+    }
     this.devices.cancel(s.deviceId, sessionId);
     await this.move(sessionId, "ACTIVE", "CANCELLED", {}, "settle failed: device switched off, unpaid");
     this.log.error({ sessionId }, `settle failed after ${SETTLE_ATTEMPTS} attempts; device switched off, session cancelled unpaid`);

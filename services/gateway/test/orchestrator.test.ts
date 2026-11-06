@@ -248,6 +248,22 @@ describe("orchestrator", () => {
     expect(device.cancelled).toHaveLength(0);
   });
 
+  it("a bookkeeping failure AFTER a successful settle never re-settles or switches the paid device off", async () => {
+    const realAddSpend = repos.agents.addSpend;
+    repos.agents.addSpend = async () => {
+      throw new Error("db write failed after settle");
+    };
+    try {
+      const s = await finish(await start());
+      expect(s.state).toBe("SETTLED"); // the state move happened before the failing spend write
+      expect(s.hederaTxId).toBeTruthy();
+      expect(device.cancelled).toHaveLength(0); // paid device stays on
+      expect(ports.facilitator.calls.filter((c) => c === "settle")).toHaveLength(1); // money moved exactly once
+    } finally {
+      repos.agents.addSpend = realAddSpend;
+    }
+  });
+
   describe("catch-all fail-safe (unexpected errors after PENDING)", () => {
     const dbDown = async (): Promise<boolean> => {
       throw new Error("disk I/O error");
