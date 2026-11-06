@@ -2,7 +2,7 @@
 
 **Read this first after any context compaction.** It is auto-printed by the `SessionStart` (compact) hook in `.claude/settings.json`. Update it at every milestone and before ending a session (rule in `CLAUDE.md`). Keep it short: facts that survive compaction, not narrative.
 
-_Last updated: 2026-11-06 by core session (G0 passed)_
+_Last updated: 2026-11-06 by backend session (flasher tool added)_
 
 ## Where we are
 - Phase: lanes open. Gate **G0 passed** (2026-11-06). Next gates: G1 first Hedera payment (needs owner keys), G2 firmware verify.
@@ -24,7 +24,7 @@ _Last updated: 2026-11-06 by core session (G0 passed)_
 | web | not started | W1 scaffold Next.js after G0 |
 | backend | not started | B1 gateway skeleton with fakes after G0 |
 | web3 | not started | C1 first x402 Hedera payment (needs owner keys) |
-| firmware | not started | F1 verify test vector (needs PR3) |
+| firmware | owner has the ESP32 and will write firmware later; flasher tool ready (`tools/flasher`, PR) | F1 serial vector test when owner starts |
 
 ## Decisions in force
 See `docs/DECISIONS.md` (AD001–AD017). Key ones: settle-on-ack; no Solidity; any 0G failure → SAFE_STOP; ports + fakes; layers L0–L3; gateway not serverless.
@@ -43,3 +43,4 @@ See `docs/DECISIONS.md` (AD001–AD017). Key ones: settle-on-ack; no Solidity; a
 - pnpm 11 needs `allowBuilds` in `pnpm-workspace.yaml` (esbuild: true).
 - Prizes page lists no deadline. Definitive and Chainlink resources are irrelevant to us.
 - Paybot has no ESP32/receipt/policy/World/0G code; only the Hono resource-server shape and UX ideas are reusable.
+- Flasher: `pnpm --filter @agentmeter/flasher start` then http://localhost:5174 in Chrome/Edge. Flash PlatformIO .bin files and read serial output. Verified in-browser only (load, presets, no console errors); real flashing untested until the board is plugged in.

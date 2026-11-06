@@ -1,0 +1,13 @@
+{
+  "name": "@agentmeter/flasher",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "esptool-js": "0.7.0"
+  },
+  "scripts": {
+    "start": "node serve.mjs"
+  },
+  "description": "Browser ESP32 flasher + serial monitor (Web Serial, esptool-js)"
+}
