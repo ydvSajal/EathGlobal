@@ -5,6 +5,7 @@ import { createApp } from "./app";
 import { ConfigError, loadConfig } from "./config";
 import { createLogger } from "./logger";
 import { buildPorts } from "./ports";
+import { DeviceHub } from "./ws/devices";
 
 async function main() {
   const config = loadConfig();
@@ -19,9 +20,12 @@ async function main() {
     now: () => ports.clock.now(),
     checkDb: async () => (await repos.ping(), true),
   });
-  serve({ fetch: app.fetch, port: config.env.PORT }, (info) =>
+  const hub = new DeviceHub(repos, ports.clock, log);
+  hub.startSweeper();
+  const server = serve({ fetch: app.fetch, port: config.env.PORT }, (info) =>
     log.info({ port: info.port, adapters: config.adapters }, "gateway listening"),
   );
+  server.on("upgrade", hub.handleUpgrade); // devices connect outbound: ws://<host>/devices/:id?token=
 }
 
 main().catch((err: unknown) => {
