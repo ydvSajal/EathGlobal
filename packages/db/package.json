@@ -5,9 +5,20 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
+    "generate": "prisma generate",
+    "db:push": "prisma db push --skip-generate",
+    "seed": "tsx src/seed.ts",
     "typecheck": "tsc --noEmit -p .",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "postinstall": "prisma generate"
   },
-  "dependencies": { "@agentmeter/shared": "workspace:*" },
-  "devDependencies": { "@types/node": "^22.0.0" }
+  "dependencies": {
+    "@agentmeter/shared": "workspace:*",
+    "@prisma/client": "^6.19.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "prisma": "^6.19.3",
+    "tsx": "^4.23.15"
+  }
 }

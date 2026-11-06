@@ -2,7 +2,7 @@
 
 **Read this first after any context compaction.** It is auto-printed by the `SessionStart` (compact) hook in `.claude/settings.json`. Update it at every milestone and before ending a session (rule in `CLAUDE.md`). Keep it short: facts that survive compaction, not narrative.
 
-_Last updated: 2026-11-06 by backend session (B1, B3 done)_
+_Last updated: 2026-11-06 by backend session (B2 done)_
 
 ## Where we are
 - Phase: lanes open. Gate **G0 passed** (2026-11-06). Next gates: G1 first Hedera payment (needs owner keys), G2 firmware verify.
@@ -22,7 +22,7 @@ _Last updated: 2026-11-06 by backend session (B1, B3 done)_
 |---|---|---|
 | core | K1–K4 done | K5 handle `contract` issues; K6 final docs |
 | web | not started | W1 scaffold Next.js after G0 |
-| backend | B1 (PR #5), B3 done (stacked on #5) | B2 db (add Agent.allowedDeviceIds, not in PRD §7), then B4 orchestrator |
+| backend | B1 #5, B3 #6, B2 #7 (stacked, open; merging needs owner) | B4 orchestrator, then B6 device hub + sim, B5 routes |
 | web3 | not started | C1 first x402 Hedera payment (needs owner keys) |
 | firmware | not started | F1 verify test vector (needs PR3) |
 
@@ -43,3 +43,6 @@ See `docs/DECISIONS.md` (AD001–AD017). Key ones: settle-on-ack; no Solidity; a
 - pnpm 11 needs `allowBuilds` in `pnpm-workspace.yaml` (esbuild: true).
 - Prizes page lists no deadline. Definitive and Chainlink resources are irrelevant to us.
 - Paybot has no ESP32/receipt/policy/World/0G code; only the Hono resource-server shape and UX ideas are reusable.
+- Two sessions share this repo: Session A (backend/web3/firmware/docs) and Session B (frontend `apps/web`). Session B should work in its own worktree (`.worktrees/web`); never commit another lane's files.
+- `gh pr merge` by Claude is blocked by the auto-mode classifier; the owner merges PRs (bottom-up) or adds a permission rule.
+- DB: Prisma 6 + SQLite. `pnpm --filter @agentmeter/db db:push` then `seed` (device d1, agent a1; dev token `dev-token-d1`, HMAC `dev-hmac-d1`). Relative `DATABASE_URL=file:./dev.db` resolves next to `packages/db/prisma/schema.prisma`.
