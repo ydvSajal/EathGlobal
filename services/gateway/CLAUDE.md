@@ -11,7 +11,7 @@ Read first: root `CLAUDE.md`, `docs/ARCHITECTURE.md`, `docs/API.md`, `TRD.md` (�
 Hono + `@hono/node-server` + `ws`, Prisma + SQLite, zod, pino, Vitest.
 
 ## Tasks
-- [ ] **B1** Gateway skeleton: `config.ts` (zod env, fail fast), `main.ts` composition root (`ADAPTERS=fake|real`), `/health`, pino logging.
+- [x] **B1** Gateway skeleton: `config.ts` (zod env, fail fast), `main.ts` composition root (`ADAPTERS=fake|real`), `/health`, pino logging.
 - [ ] **B2** `packages/db`: Prisma schema per TRD §4 (`Device, Agent, Session, SessionEvent, StepUp, UsedNonce`), repositories, seed with one device and one agent.
 - [ ] **B3** `core/session-machine.ts` (allowed transitions only) and `core/policy.ts` (allowlist, daily cap, device rate, threshold). Table-driven unit tests.
 - [ ] **B4** `core/orchestrator.ts`: verify → policy → step-up → decide → receipt → push → ack(8s) → settle → log. Tests with fakes: happy, replay, over-cap denied, 0G down → SAFE_STOP, no ack → no settle.
