@@ -11,6 +11,8 @@ export interface AppDeps {
   adapters: AdapterModes;
   startedAt: number; // unix seconds
   now: () => number;
+  /** Resolves true when the DB answers; omitted means no DB wired. */
+  checkDb?: () => Promise<boolean>;
 }
 
 /** HTTP status for each stable error code (docs/API.md). */
@@ -38,16 +40,19 @@ export function createApp(deps: AppDeps) {
 
   app.use("*", cors({ origin: "*", exposeHeaders: ["X-PAYMENT-RESPONSE"] }));
 
-  app.get("/health", (c) =>
-    c.json({
-      ok: true,
-      // db and per-dependency last-success times are filled in by B2 and the adapters.
-      db: "unconfigured",
-      adapters: deps.adapters,
-      deps: {},
-      uptimeSec: deps.now() - deps.startedAt,
-    }),
-  );
+  app.get("/health", async (c) => {
+    const db = deps.checkDb ? ((await deps.checkDb().catch(() => false)) ? "ok" : "down") : "unconfigured";
+    return c.json(
+      {
+        ok: db !== "down",
+        db,
+        adapters: deps.adapters,
+        deps: {}, // per-dependency last-success times are filled in by the adapters
+        uptimeSec: deps.now() - deps.startedAt,
+      },
+      db === "down" ? 503 : 200,
+    );
+  });
 
   app.onError((err, c) => {
     if (err instanceof AgentMeterError) {

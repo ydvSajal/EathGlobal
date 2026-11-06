@@ -71,6 +71,23 @@ describe("app", () => {
     expect(body.adapters.decider).toBe("fake");
   });
 
+  it("reports db status and 503 when the DB is down", async () => {
+    const up = createApp({ log, adapters: loadConfig({}).adapters, startedAt: 0, now: () => 0, checkDb: async () => true });
+    expect(await (await up.request("/health")).json()).toMatchObject({ ok: true, db: "ok" });
+    const down = createApp({
+      log,
+      adapters: loadConfig({}).adapters,
+      startedAt: 0,
+      now: () => 0,
+      checkDb: async () => {
+        throw new Error("no db");
+      },
+    });
+    const res = await down.request("/health");
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ ok: false, db: "down" });
+  });
+
   it("maps AgentMeterError to the documented error body and status", async () => {
     const a = createApp({ log, adapters: loadConfig({}).adapters, startedAt: 0, now: () => 0 });
     a.get("/boom", () => {
