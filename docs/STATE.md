@@ -2,7 +2,7 @@
 
 **Read this first after any context compaction.** It is auto-printed by the `SessionStart` (compact) hook in `.claude/settings.json`. Update it at every milestone and before ending a session (rule in `CLAUDE.md`). Keep it short: facts that survive compaction, not narrative.
 
-_Last updated: 2026-11-06 by web3/backend session (C2 facilitator adapter)_
+_Last updated: 2026-11-06 by backend session (fail-safe hardening, branch `be/failsafe-fixes`)_
 
 ## Where we are
 - Phase: lanes open. Gate **G0 passed** (2026-11-06). Next gates: G1 first Hedera payment (needs owner keys), G2 firmware verify.
@@ -22,12 +22,12 @@ _Last updated: 2026-11-06 by web3/backend session (C2 facilitator adapter)_
 |---|---|---|
 | core | K1–K4 done | K5 handle `contract` issues; K6 final docs |
 | web | not started | W1 scaffold Next.js after G0 |
-| backend | B1-B6 merged into main (PRs #5-#9, #11); CI green. Smoke: real gateway + sim ESP32 + curl reached SETTLED on fakes | B7 agent CLI (needs C1 payer code), B8 scenarios; C-lane needs Hedera keys |
+| backend | B1-B6 merged into main (PRs #5-#9, #11); CI green. Smoke: real gateway + sim ESP32 + curl reached SETTLED on fakes. Fail-safe hardening PR open (`be/failsafe-fixes`, AD027-AD031): catch-all, settle-fail switches device off, step-up TTL, cap reservation, boot recovery | B7 agent CLI (needs C1 payer code), B8 scenarios; C-lane needs Hedera keys |
 | web3 | C2 real facilitator adapter done (PR open); live-verified vs x402.org without keys | C1 first payment + C3 HCS need owner Hedera keys; C4/C5 need 0G key; C6 needs World client |
 | firmware | owner has the ESP32 and writes firmware later; flasher tool in `tools/flasher` | F1 serial vector test when owner starts; protocol ref: `services/gateway/scripts/sim-device.ts` + `docs/API.md` §2-3 |
 
 ## Decisions in force
-See `docs/DECISIONS.md` (AD001–AD017). Key ones: settle-on-ack; no Solidity; any 0G failure → SAFE_STOP; ports + fakes; layers L0–L3; gateway not serverless.
+See `docs/DECISIONS.md` (AD001–AD033). Key ones: settle-on-ack; no Solidity; any 0G failure → SAFE_STOP; ports + fakes; layers L0–L3; gateway not serverless; flow never hangs (catch-all + boot recovery); settle fails 3× → device off, CANCELLED unpaid. Known demo risks accepted: WS token in query string, unauthenticated reads/callback (AD032-AD033).
 
 ## Blocked on the owner (ask, never invent)
 - Hedera testnet accounts and keys: operator, payTo, agent (payer).

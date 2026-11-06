@@ -5,7 +5,7 @@
  */
 import { createHash } from "node:crypto";
 import { Prisma, PrismaClient } from "@prisma/client";
-import { AgentMeterError, type SessionState } from "@agentmeter/shared";
+import { AgentMeterError, TERMINAL_STATES, type SessionState } from "@agentmeter/shared";
 
 export type Db = PrismaClient;
 
@@ -28,7 +28,7 @@ export const sha256 = (s: string) => createHash("sha256").update(s).digest("hex"
 /** UTC calendar day for a unix-seconds timestamp. */
 export const utcDay = (unix: number) => new Date(unix * 1000).toISOString().slice(0, 10);
 
-const isUniqueViolation = (e: unknown) =>
+const isUniqueViolation =(e: unknown) =>
   e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
 
 export type SessionPatch = Partial<{
@@ -140,6 +140,20 @@ export function createRepos(db: Db) {
     recentForDevice: (deviceId: string, limit = 5) =>
       db.session.findMany({ where: { deviceId }, orderBy: { createdAt: "desc" }, take: limit, select: { state: true, createdAt: true } }),
     list: (limit = 50) => db.session.findMany({ orderBy: { createdAt: "desc" }, take: limit }),
+    /** Sessions in `state` created strictly before `olderThanUnix` (step-up expiry, restart recovery). */
+    listByStateOlderThan: (state: SessionState, olderThanUnix: number) =>
+      db.session.findMany({ where: { state, createdAt: { lt: olderThanUnix } }, orderBy: { createdAt: "asc" } }),
+    /**
+     * Sum of this agent's in-flight (not yet terminal) session amounts created since `sinceUnix`,
+     * excluding `excludeSessionId`. Counted against the daily cap so concurrent sessions cannot overshoot it.
+     */
+    async reservedAmount(agentId: string, excludeSessionId: string, sinceUnix: number): Promise<bigint> {
+      const rows = await db.session.findMany({
+        where: { agentId, id: { not: excludeSessionId }, state: { notIn: [...TERMINAL_STATES] },createdAt: { gte: sinceUnix } },
+        select: { amount: true },
+      });
+      return rows.reduce((sum, r) => sum + BigInt(r.amount), 0n);
+    },
   };
 
   const nonces = {

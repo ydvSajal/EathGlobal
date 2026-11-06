@@ -59,7 +59,7 @@ export function createApp(deps: AppDeps) {
     );
   });
 
-  if (deps.api) mountApi(app, deps.api);
+  if (deps.api) mountApi(app, deps.api, deps.log);
 
   app.onError((err, c) => {
     if (err instanceof AgentMeterError) {

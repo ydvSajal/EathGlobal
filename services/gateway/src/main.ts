@@ -35,6 +35,9 @@ async function main() {
     ackTimeoutMs: config.env.ACK_TIMEOUT_MS,
     zgTimeoutMs: config.env.ZG_TIMEOUT_MS,
   });
+  // Before serving: pending payments were in memory, so no unsettled session from a previous run can settle.
+  await orchestrator.recoverOrphans();
+  setInterval(() => void orchestrator.expireStaleStepUps(), 30_000).unref();
 
   const app = createApp({
     log,

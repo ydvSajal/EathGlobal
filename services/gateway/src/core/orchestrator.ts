@@ -6,6 +6,8 @@
  *  - Any 0G error, timeout, DENY, or malformed output => SAFE_STOP. Never a default ALLOW.
  *  - Payment settles only after a valid device ack.
  *  - Logging (HCS, 0G Storage) runs in the background and never changes a decision.
+ *  - The async flow never rejects: anything unexpected moves the session to a safe terminal state
+ *    and switches the device off (`failSafe`).
  */
 import { randomUUID } from "node:crypto";
 import {
@@ -23,7 +25,7 @@ import type { Logger } from "pino";
 import type { Ports } from "../ports";
 import type { DeviceChannel } from "./device-channel";
 import { evaluatePolicy } from "./policy";
-import { transition } from "./session-machine";
+import { isTerminal, transition } from "./session-machine";
 
 export interface OrchestratorOptions {
   receiptSeedBase64: string;
@@ -34,7 +36,14 @@ export interface OrchestratorOptions {
   settleTimeoutMs?: number;
   rateWindowSec?: number;
   maxSessionsPerWindow?: number;
+  /** Wait between settle attempts (3 attempts total). Tests use 0. */
+  settleBackoffMs?: number;
+  /** A session still waiting for a human after this long is cancelled by `expireStaleStepUps`. */
+  stepUpTtlSec?: number;
 }
+
+const SETTLE_ATTEMPTS = 3;
+const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export interface SessionEventMsg {
   sessionId: string;
@@ -57,7 +66,7 @@ interface PendingPayment {
 }
 
 export class Orchestrator {
-  // ponytail: in-memory pending payments; a gateway restart drops unsettled sessions (they never settle, which is the safe side).
+  // ponytail: in-memory pending payments; a restart loses them, so `recoverOrphans` cancels every unsettled session at boot.
   private pending = new Map<string, PendingPayment>();
   private background = new Set<Promise<unknown>>();
   private listeners = new Set<(e: SessionEventMsg) => void>();
@@ -70,7 +79,15 @@ export class Orchestrator {
     private readonly log: Logger,
     opts: OrchestratorOptions,
   ) {
-    this.o = { verifyTimeoutMs: 5000, settleTimeoutMs: 10_000, rateWindowSec: 3600, maxSessionsPerWindow: 20, ...opts };
+    this.o = {
+      verifyTimeoutMs: 5000,
+      settleTimeoutMs: 10_000,
+      rateWindowSec: 3600,
+      maxSessionsPerWindow: 20,
+      settleBackoffMs: 500,
+      stepUpTtlSec: 300,
+      ...opts,
+    };
   }
 
   onEvent(fn: (e: SessionEventMsg) => void): () => void {
@@ -124,55 +141,144 @@ export class Orchestrator {
     }); // throws PAYMENT_REPLAY on a reused payload
     this.emit({ sessionId, state: "PENDING", at: now, detail: null });
 
-    const policy = evaluatePolicy({
-      amount: BigInt(amount),
-      stepUpThreshold: this.o.stepUpThreshold,
-      agent: {
-        dailyCap: BigInt(agent.dailyCap),
-        spentToday: this.repos.agents.spentOn(agent, now),
-        allowedDeviceIds: this.repos.agents.allowedDeviceIds(agent),
-      },
-      device: {
-        id: device.id,
-        online: this.devices.isOnline(device.id),
-        recentSessionCount: recent,
-        maxSessionsPerWindow: this.o.maxSessionsPerWindow,
-      },
-    });
-
-    if (policy.verdict === "DENY") {
-      await this.move(sessionId, "PENDING", "CANCELLED", {}, policy.reason);
-      throw new AgentMeterError(policy.code, policy.reason, sessionId);
-    }
-
-    this.pending.set(sessionId, { paymentHeader: input.paymentHeader, requirements });
-
-    if (policy.verdict === "STEP_UP") {
-      await this.move(sessionId, "PENDING", "STEP_UP", {}, policy.reason);
-      const { authorizeUrl } = await this.ports.stepUp.start({
-        sessionId,
-        action: { deviceId: device.id, minutes: input.minutes, amount, asset: device.asset, expiresAt: now + 300 },
+    // From here on the session exists: an unexpected error must not leave it PENDING (it would hold cap).
+    let policy: ReturnType<typeof evaluatePolicy>;
+    try {
+      // In-flight sessions of this agent count as spent, so concurrent requests cannot overshoot the cap.
+      const reserved = await this.repos.sessions.reservedAmount(agent.id, sessionId, now - (now % 86_400));
+      policy = evaluatePolicy({
+        amount: BigInt(amount),
+        stepUpThreshold: this.o.stepUpThreshold,
+        agent: {
+          dailyCap: BigInt(agent.dailyCap),
+          spentToday: this.repos.agents.spentOn(agent, now) + reserved,
+          allowedDeviceIds: this.repos.agents.allowedDeviceIds(agent),
+        },
+        device: {
+          id: device.id,
+          online: this.devices.isOnline(device.id),
+          recentSessionCount: recent,
+          maxSessionsPerWindow: this.o.maxSessionsPerWindow,
+        },
       });
-      return { sessionId, state: "STEP_UP", stepUpUrl: authorizeUrl, done: Promise.resolve() };
-    }
 
-    await this.move(sessionId, "PENDING", "DECIDING");
+      if (policy.verdict === "DENY") {
+        await this.move(sessionId, "PENDING", "CANCELLED", {}, policy.reason);
+      } else if (policy.verdict === "STEP_UP") {
+        this.pending.set(sessionId, { paymentHeader: input.paymentHeader, requirements });
+        await this.move(sessionId, "PENDING", "STEP_UP", {}, policy.reason);
+        const { authorizeUrl } = await this.ports.stepUp.start({
+          sessionId,
+          action: { deviceId: device.id, minutes: input.minutes, amount, asset: device.asset, expiresAt: now + this.o.stepUpTtlSec },
+        });
+        return { sessionId, state: "STEP_UP", stepUpUrl: authorizeUrl, done: Promise.resolve() };
+      } else {
+        this.pending.set(sessionId, { paymentHeader: input.paymentHeader, requirements });
+        await this.move(sessionId, "PENDING", "DECIDING");
+      }
+    } catch (e) {
+      await this.failSafe(sessionId, e);
+      throw e;
+    }
+    if (policy.verdict === "DENY") throw new AgentMeterError(policy.code, policy.reason, sessionId);
     return { sessionId, state: "DECIDING", done: this.decideAndIssue(sessionId) };
   }
 
-  /** World callback. Approve resumes the flow; deny/expire cancels and nothing is ever settled. */
+  /**
+   * World callback. Approve resumes the flow; deny/expire cancels and nothing is ever settled.
+   * A callback for a session that already left STEP_UP (expired, cancelled, restarted) throws STEP_UP_EXPIRED.
+   */
   async completeStepUp(cb: { code?: string; state: string; error?: string }) {
     const r = await this.ports.stepUp.complete(cb); // throws on unknown/reused state
-    if (r.result === "APPROVED") {
-      await this.move(r.sessionId, "STEP_UP", "DECIDING", {}, "world id approved");
-      return { ...r, done: this.decideAndIssue(r.sessionId) };
+    const expired = () => new AgentMeterError("STEP_UP_EXPIRED", "step-up is no longer pending (expired or cancelled)", r.sessionId);
+    const approved = r.result === "APPROVED";
+    if (approved && !this.pending.has(r.sessionId)) throw expired();
+    if (!approved) this.pending.delete(r.sessionId);
+    try {
+      await this.move(r.sessionId, "STEP_UP", approved ? "DECIDING" : "CANCELLED", {},
+        approved ? "world id approved" : `step-up ${r.result.toLowerCase()}`);
+    } catch (e) {
+      const s = await this.repos.sessions.get(r.sessionId).catch(() => null);
+      if (s && s.state !== "STEP_UP") throw expired(); // lost the race to expiry/cancel
+      throw e;
     }
-    this.pending.delete(r.sessionId);
-    await this.move(r.sessionId, "STEP_UP", "CANCELLED", {}, `step-up ${r.result.toLowerCase()}`);
-    return { ...r, done: Promise.resolve() };
+    return { ...r, done: approved ? this.decideAndIssue(r.sessionId) : Promise.resolve() };
   }
 
-  private async decideAndIssue(sessionId: string): Promise<void> {
+  /** Cancel sessions that waited for a human longer than `stepUpTtlSec`. Never throws (runs on a timer). */
+  async expireStaleStepUps(): Promise<void> {
+    try {
+      const stale = await this.repos.sessions.listByStateOlderThan("STEP_UP", this.ports.clock.now() - this.o.stepUpTtlSec);
+      for (const s of stale) {
+        try {
+          await this.move(s.id, "STEP_UP", "CANCELLED", {}, "step-up expired");
+          this.pending.delete(s.id);
+        } catch (e) {
+          this.log.warn({ sessionId: s.id, err: errMsg(e) }, "step-up expiry skipped (session moved meanwhile)");
+        }
+      }
+    } catch (e) {
+      this.log.error({ err: errMsg(e) }, "step-up expiry sweep failed");
+    }
+  }
+
+  /**
+   * Boot-time recovery: pending payments live in memory, so after a restart no unsettled session can
+   * ever settle. Move every non-terminal session to a terminal state. Payment is never settled here.
+   */
+  async recoverOrphans(): Promise<void> {
+    const plan: Array<[SessionState, SessionState, string]> = [
+      ["PENDING", "CANCELLED", "gateway restarted"],
+      ["STEP_UP", "CANCELLED", "gateway restarted"],
+      ["DECIDING", "SAFE_STOP", "gateway restarted"],
+      ["ISSUED", "CANCELLED", "gateway restarted"],
+      ["ACTIVE", "CANCELLED", "gateway restarted before settlement"],
+    ];
+    const everything = this.ports.clock.now() + 1; // "older than now+1" lists every session in the state
+    for (const [from, to, detail] of plan) {
+      for (const s of await this.repos.sessions.listByStateOlderThan(from, everything)) {
+        try {
+          if (from === "ISSUED" || from === "ACTIVE") this.devices.cancel(s.deviceId, s.id); // best effort; usually not connected yet
+          await this.move(s.id, from, to, {}, detail);
+          this.log.warn({ sessionId: s.id, from, to }, "recovered orphaned session");
+        } catch (e) {
+          this.log.error({ sessionId: s.id, err: errMsg(e) }, "orphan recovery failed for session");
+        }
+      }
+    }
+  }
+
+  /** The async flow (decide -> settle). Never rejects: unexpected errors fail safe. */
+  private decideAndIssue(sessionId: string): Promise<void> {
+    return this.runFlow(sessionId).catch((e: unknown) => this.failSafe(sessionId, e));
+  }
+
+  /**
+   * Catch-all: move the session to a safe terminal state based on its CURRENT persisted state and
+   * switch the device off. Never throws.
+   */
+  private async failSafe(sessionId: string, err: unknown): Promise<void> {
+    this.log.error({ sessionId, err: errMsg(err) }, "session flow failed unexpectedly; failing safe");
+    this.pending.delete(sessionId);
+    try {
+      const s = await this.repos.sessions.get(sessionId);
+      const state = s?.state as SessionState | undefined;
+      const detail = `fail-safe: ${errMsg(err)}`;
+      if (!s || !state || isTerminal(state)) return;
+      if (state === "ISSUED" || state === "ACTIVE") {
+        try {
+          this.devices.cancel(s.deviceId, sessionId);
+        } catch (e) {
+          this.log.error({ sessionId, err: errMsg(e) }, "fail-safe: device cancel failed");
+        }
+      }
+      await this.move(sessionId, state, state === "DECIDING" ? "SAFE_STOP" : "CANCELLED", {}, detail);
+    } catch (e) {
+      this.log.error({ sessionId, err: errMsg(e) }, "fail-safe could not move the session (restart recovery will)");
+    }
+  }
+
+  private async runFlow(sessionId: string): Promise<void> {
     const s = await this.repos.sessions.get(sessionId);
     if (!s) throw new AgentMeterError("INTERNAL", "session vanished", sessionId);
     const device = await this.repos.devices.get(s.deviceId);
@@ -240,28 +346,41 @@ export class Orchestrator {
     }
     await this.move(sessionId, "ISSUED", "ACTIVE", {}, "device ack");
 
-    // 3. Settle only now. A failed settle leaves the session ACTIVE for an idempotent retry.
+    // 3. Settle only now (idempotent, so retrying is safe). The device is already on: if settle keeps
+    //    failing, switch it off and cancel unpaid rather than give free usage.
     const pay = this.pending.get(sessionId);
     if (!pay) throw new AgentMeterError("INTERNAL", "pending payment missing", sessionId);
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    let txId: string | undefined;
+    for (let attempt = 1; attempt <= SETTLE_ATTEMPTS && !txId; attempt++) {
+      if (attempt > 1 && this.o.settleBackoffMs > 0) await new Promise((r) => setTimeout(r, this.o.settleBackoffMs));
       try {
         const res = await withTimeout(
           () => this.ports.facilitator.settle(pay.paymentHeader, pay.requirements),
           this.o.settleTimeoutMs,
           "facilitator settle",
         );
-        if (res.success && res.txId) {
-          this.pending.delete(sessionId);
-          await this.move(sessionId, "ACTIVE", "SETTLED", { hederaTxId: res.txId }, "settled");
-          await this.repos.agents.addSpend(s.agentId, BigInt(s.amount), this.ports.clock.now());
-          return;
-        }
-        this.log.warn({ sessionId, attempt, error: res.error }, "settle failed");
+        if (res.success && res.txId) txId = res.txId;
+        else this.log.warn({ sessionId, attempt, error: res.error }, "settle failed");
       } catch (e) {
-        this.log.warn({ sessionId, attempt, err: (e as Error).message }, "settle error");
+        this.log.warn({ sessionId, attempt, err: errMsg(e) }, "settle error");
       }
     }
-    this.log.error({ sessionId }, "settle failed after retries; session left ACTIVE");
+    this.pending.delete(sessionId);
+    if (txId) {
+      // Money has moved. Bookkeeping errors below must NEVER be treated as a failed settle: that would
+      // retry the payment and switch off a device that was paid for.
+      this.log.info({ sessionId, txId }, "settled"); // logged first: the tx id survives a failed DB write
+      try {
+        await this.move(sessionId, "ACTIVE", "SETTLED", { hederaTxId: txId }, "settled");
+        await this.repos.agents.addSpend(s.agentId, BigInt(s.amount), this.ports.clock.now());
+      } catch (e) {
+        this.log.error({ sessionId, txId, err: errMsg(e) }, "settled on-chain but bookkeeping failed; reconcile manually");
+      }
+      return;
+    }
+    this.devices.cancel(s.deviceId, sessionId);
+    await this.move(sessionId, "ACTIVE", "CANCELLED", {}, "settle failed: device switched off, unpaid");
+    this.log.error({ sessionId }, `settle failed after ${SETTLE_ATTEMPTS} attempts; device switched off, session cancelled unpaid`);
   }
 
   /** Legal transition + DB compare-and-set + live event + background HCS audit. */

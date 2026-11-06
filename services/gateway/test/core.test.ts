@@ -11,7 +11,7 @@ describe("session machine", () => {
     ["STEP_UP", "DECIDING"], ["STEP_UP", "CANCELLED"],
     ["DECIDING", "ISSUED"], ["DECIDING", "SAFE_STOP"],
     ["ISSUED", "ACTIVE"], ["ISSUED", "CANCELLED"],
-    ["ACTIVE", "SETTLED"],
+    ["ACTIVE", "SETTLED"], ["ACTIVE", "CANCELLED"], // CANCELLED: settle failed / fail-safe / restart, device switched off
   ];
 
   it("allows exactly the documented transitions, nothing else", () => {
